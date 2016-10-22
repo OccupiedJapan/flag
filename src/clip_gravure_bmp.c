@@ -2,6 +2,14 @@
   clip_gravure_bmp.c
 
   >mingw32-make -f makefile.tdmgcc64
+
+  Usage:
+
+    >clip_gravure_bmp
+      save bitmap from clipboard (abort when clipboard data is not bitmap)
+
+    >clip_gravure_bmp [o]
+      same as above, but capture full screen when clipboard data is not bitmap
 */
 
 #ifndef UNICODE
@@ -90,7 +98,34 @@ int saveBMP(HBITMAP hbmp, int c, int r, HDC hdc)
 int main(int ac, char **av)
 {
   HWND hwnd = GetDesktopWindow();
-  OpenClipboard(hwnd);
+  if(!OpenClipboard(hwnd)){
+    fprintf(stderr, "cannot open clipboard\n");
+    return 1;
+  }
+  if(!IsClipboardFormatAvailable(CF_BITMAP)){
+    if(ac >= 2){
+      HBITMAP hbmp, obmp;
+      int w, h;
+      HDC hsdc = CreateDCW(L"DISPLAY", NULL, NULL, NULL);
+      HDC hmdc = CreateCompatibleDC(hsdc);
+      RECT rc;
+      GetClientRect(hwnd, &rc);
+      w = rc.right - rc.left;
+      h = rc.bottom - rc.top;
+      hbmp = CreateCompatibleBitmap(hsdc, w, h);
+      obmp = SelectObject(hmdc, hbmp);
+      BitBlt(hmdc, 0, 0, w, h, hsdc, 0, 0, SRCCOPY);
+      SelectObject(hmdc, obmp);
+      EmptyClipboard();
+      SetClipboardData(CF_BITMAP, hbmp);
+      DeleteDC(hmdc);
+      DeleteDC(hsdc);
+    }else{
+      fprintf(stderr, "no bitmap in clipboard\n");
+      CloseClipboard();
+      return 2;
+    }
+  }
   if(IsClipboardFormatAvailable(CF_BITMAP)){
     HBITMAP hbmp = (HBITMAP)GetClipboardData(CF_BITMAP);
     HDC hdc = GetDC(hwnd);
@@ -104,9 +139,11 @@ int main(int ac, char **av)
     // must not delete hbmp and bm
     DeleteDC(hmdc);
     ReleaseDC(hwnd, hdc);
+    CloseClipboard();
   }else{
-    fprintf(stderr, "no bitmap in clipboard\n");
+    fprintf(stderr, "cannot gravure to clipboard\n");
+    CloseClipboard();
+    return 3;
   }
-  CloseClipboard();
   return 0;
 }
