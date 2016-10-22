@@ -10,6 +10,9 @@
 
     >clip_gravure_bmp [o]
       same as above, but capture full screen when clipboard data is not bitmap
+
+    >clip_gravure_bmp [f]
+      force capture full screen right now (force overwrite old one)
 */
 
 #ifndef UNICODE
@@ -95,6 +98,45 @@ int saveBMP(HBITMAP hbmp, int c, int r, HDC hdc)
   return 0;
 }
 
+int captureFullScreenToClip(HWND hwnd)
+{
+  HBITMAP hbmp, obmp;
+  int w, h;
+  HDC hsdc = CreateDCW(L"DISPLAY", NULL, NULL, NULL);
+  HDC hmdc = CreateCompatibleDC(hsdc);
+  RECT rc;
+  GetClientRect(hwnd, &rc);
+  w = rc.right - rc.left;
+  h = rc.bottom - rc.top;
+  hbmp = CreateCompatibleBitmap(hsdc, w, h);
+  obmp = SelectObject(hmdc, hbmp);
+  BitBlt(hmdc, 0, 0, w, h, hsdc, 0, 0, SRCCOPY);
+  SelectObject(hmdc, obmp);
+  EmptyClipboard();
+  SetClipboardData(CF_BITMAP, hbmp);
+  // must not delete hbmp
+  DeleteDC(hmdc);
+  DeleteDC(hsdc);
+  return 0;
+}
+
+int getBitmapFromClip(HWND hwnd)
+{
+  HBITMAP hbmp = (HBITMAP)GetClipboardData(CF_BITMAP);
+  HDC hdc = GetDC(hwnd);
+  HDC hmdc = CreateCompatibleDC(hdc);
+  HBITMAP obmp = SelectObject(hmdc, hbmp);
+  BITMAP bm;
+  GetObject(hbmp, sizeof(BITMAP), (LPSTR)&bm);
+  BitBlt(hdc, 0, 0, bm.bmWidth, bm.bmHeight, hmdc, 0, 0, SRCCOPY);
+  SelectObject(hmdc, obmp);
+  saveBMP(hbmp, bm.bmWidth, bm.bmHeight, hmdc);
+  // must not delete hbmp and bm
+  DeleteDC(hmdc);
+  ReleaseDC(hwnd, hdc);
+  return 0;
+}
+
 int main(int ac, char **av)
 {
   HWND hwnd = GetDesktopWindow();
@@ -102,24 +144,19 @@ int main(int ac, char **av)
     fprintf(stderr, "cannot open clipboard\n");
     return 1;
   }
+  if(ac >= 2){
+    if(av[1][0] == 'o') ; // skip here
+    else if(av[1][0] == 'f') EmptyClipboard();
+    else{
+      fprintf(stderr, "unknown option: '%s'\n", av[1]);
+      fprintf(stderr, "Usage: %s [o|f]\n", av[0]);
+      CloseClipboard();
+      return -1;
+    }
+  }
   if(!IsClipboardFormatAvailable(CF_BITMAP)){
     if(ac >= 2){
-      HBITMAP hbmp, obmp;
-      int w, h;
-      HDC hsdc = CreateDCW(L"DISPLAY", NULL, NULL, NULL);
-      HDC hmdc = CreateCompatibleDC(hsdc);
-      RECT rc;
-      GetClientRect(hwnd, &rc);
-      w = rc.right - rc.left;
-      h = rc.bottom - rc.top;
-      hbmp = CreateCompatibleBitmap(hsdc, w, h);
-      obmp = SelectObject(hmdc, hbmp);
-      BitBlt(hmdc, 0, 0, w, h, hsdc, 0, 0, SRCCOPY);
-      SelectObject(hmdc, obmp);
-      EmptyClipboard();
-      SetClipboardData(CF_BITMAP, hbmp);
-      DeleteDC(hmdc);
-      DeleteDC(hsdc);
+      captureFullScreenToClip(hwnd);
     }else{
       fprintf(stderr, "no bitmap in clipboard\n");
       CloseClipboard();
@@ -127,18 +164,7 @@ int main(int ac, char **av)
     }
   }
   if(IsClipboardFormatAvailable(CF_BITMAP)){
-    HBITMAP hbmp = (HBITMAP)GetClipboardData(CF_BITMAP);
-    HDC hdc = GetDC(hwnd);
-    HDC hmdc = CreateCompatibleDC(hdc);
-    HBITMAP obmp = SelectObject(hmdc, hbmp);
-    BITMAP bm;
-    GetObject(hbmp, sizeof(BITMAP), (LPSTR)&bm);
-    BitBlt(hdc, 0, 0, bm.bmWidth, bm.bmHeight, hmdc, 0, 0, SRCCOPY);
-    SelectObject(hmdc, obmp);
-    saveBMP(hbmp, bm.bmWidth, bm.bmHeight, hmdc);
-    // must not delete hbmp and bm
-    DeleteDC(hmdc);
-    ReleaseDC(hwnd, hdc);
+    getBitmapFromClip(hwnd);
     CloseClipboard();
   }else{
     fprintf(stderr, "cannot gravure to clipboard\n");

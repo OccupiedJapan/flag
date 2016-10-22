@@ -15,6 +15,9 @@ $ clip_gravure_bmp
 
 $ clip_gravure_bmp [o]
   # same as above, but capture full screen when clipboard data is not bitmap
+
+$ clip_gravure_bmp [f]
+  # force capture full screen right now (force overwrite old one)
 ```
 
 
