@@ -1,0 +1,60 @@
+MINGW_DIR = /tdm-gcc-64
+MINGW_LIB = $(MINGW_DIR)/x86_64-w64-mingw32/lib
+MINGW_LIB32 = $(MINGW_DIR)/x86_64-w64-mingw32/lib32
+MINGW_L = $(MINGW_DIR)/lib
+MINGW_LG = $(MINGW_DIR)/lib/gcc
+MINGW_WLIB = $(MINGW_DIR)/lib/gcc/x86_64-w64-mingw32/5.1.0
+MINGW_WLIB32 = $(MINGW_DIR)/lib/gcc/x86_64-w64-mingw32/5.1.0/32
+CC = gcc
+CFLAGS =
+LD = ld
+LFLAGS = -s -m i386pep --exclude-libs=libpthread.a -Bdynamic
+LFLAGS32 = -s -m i386pe --exclude-libs=libpthread.a -Bdynamic
+#
+# -Bstatic
+#
+LIB_RB = $(MINGW_LIB)/crt2.o $(MINGW_WLIB)/crtbegin.o
+LIB_RB32 = $(MINGW_LIB32)/crt2.o $(MINGW_WLIB32)/crtbegin.o
+LIB_E = $(MINGW_WLIB)/crtend.o
+LIB_E32 = $(MINGW_WLIB32)/crtend.o
+#
+LIB_DIR = -L$(MINGW_WLIB) -L$(MINGW_LG) -L$(MINGW_LIB) -L$(MINGW_L)
+LIB_DIR32 = -L$(MINGW_WLIB32) -L$(MINGW_LIB32) -L$(LIB_DIR)
+LIB_M = -lmingw32 -lgcc -lmoldname -lmingwex -lmsvcrt -lpthread
+LIB_W = -ladvapi32 -lshell32 -lgdi32 -luser32 -lkernel32
+LIB_FIX = $(LIB_M) $(LIB_W)
+#
+# -lcomdlg32 --subsystem windows
+# -ld3d9 -ld3dx9
+# -ld3d11 -ld3dx11
+# -lapi-ms-win-core-winrt-l1-1-0 -lapi-ms-win-core-winrt-string-l1-1-0
+#
+LIB_PRE = $(LIB_RB) $(LIB_DIR)
+LIB_PRE32 = $(LIB_RB32) $(LIB_DIR32)
+LIB_POST = $(LIB_FIX) $(LIB_E)
+LIB_POST32 = $(LIB_FIX) $(LIB_E32)
+
+all : clip_gravure_bmp.exe clip_gravure_bmp.64.exe clip_gravure_bmp.32.exe
+
+clean :
+	del *.o
+	del *.o64
+	del *.o32
+	del *.s
+
+clip_gravure_bmp.exe : clip_gravure_bmp.64.exe
+	copy clip_gravure_bmp.64.exe clip_gravure_bmp.exe
+
+clip_gravure_bmp.64.exe : clip_gravure_bmp.o64
+	$(LD) -o clip_gravure_bmp.64.exe $(LFLAGS) $(LIB_PRE) clip_gravure_bmp.o64 $(LIB_POST)
+
+clip_gravure_bmp.o64 : clip_gravure_bmp.c
+	$(CC) -m64 -o clip_gravure_bmp.s64 -S clip_gravure_bmp.c $(CFLAGS)
+	$(CC) -m64 -o clip_gravure_bmp.o64 -c clip_gravure_bmp.c $(CFLAGS)
+
+clip_gravure_bmp.32.exe : clip_gravure_bmp.o32
+	$(LD) -o clip_gravure_bmp.32.exe $(LFLAGS32) $(LIB_PRE32) clip_gravure_bmp.o32 $(LIB_POST32)
+
+clip_gravure_bmp.o32 : clip_gravure_bmp.c
+	$(CC) -m32 -o clip_gravure_bmp.s32 -S clip_gravure_bmp.c $(CFLAGS)
+	$(CC) -m32 -o clip_gravure_bmp.o32 -c clip_gravure_bmp.c $(CFLAGS)
