@@ -13,23 +13,39 @@
 #include <stdlib.h>
 #include <string.h>
 #include <conio.h>
+#if defined(WIN32) || defined(WIN64) || defined(_WIN32) || defined(_WIN64)
 #include <time.h>
+#else
+#include <time.h>
+#include <sys/time.h>
+#endif
 
 #define FN_GRAVURE "\\tmp\\________________gravure_%s.bmp"
-#define LEN_TS 16
+#define LEN_TS 32
 
 #define OFFBITS (sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER))
 
 char *makeTimestamp()
 {
   static char ts[LEN_TS];
+#if defined(WIN32) || defined(WIN64) || defined(_WIN32) || defined(_WIN64)
+  SYSTEMTIME st;
+  // GetSystemTime(&st); // UTC
+  GetLocalTime(&st); // tz=default
+  sprintf(ts, "%04d%02d%02d_%02d%02d%02d.%03d000",
+    st.wYear, st.wMonth, st.wDay,
+    st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
+#else
   time_t tt;
+  struct timeval tv;
   struct tm *t;
-  time(&tt);
+  gettimeofday(&tv, NULL); // NULL means tz=default
+  tt = tv.tv_sec; // *** CAUTION ***
   t = localtime(&tt);
-  sprintf(ts, "%04d%02d%02d_%02d%02d%02d",
+  sprintf(ts, "%04d%02d%02d_%02d%02d%02d.%06d",
     t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-    t->tm_hour, t->tm_min, t->tm_sec);
+    t->tm_hour, t->tm_min, t->tm_sec, tv.tv_usec);
+#endif
   return ts;
 }
 
